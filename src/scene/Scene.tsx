@@ -153,7 +153,7 @@ export function Scene() {
         <People site={site} />
         <SelectionLayer site={site} />
       </group>
-      <OrbitControls makeDefault enableDamping dampingFactor={0.08} minDistance={22} maxDistance={360 * view.scale} maxPolarAngle={1.32} target={view.target.toArray()} />
+      <OrbitControls makeDefault enableDamping dampingFactor={0.08} minDistance={22} maxDistance={360 * view.scale} maxPolarAngle={1.47} target={view.target.toArray()} />
       <CameraRig />
     </Canvas>
   )
