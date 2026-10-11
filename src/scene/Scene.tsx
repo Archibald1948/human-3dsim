@@ -120,6 +120,8 @@ export function Scene() {
       shadows
       flat
       dpr={[1, 1.75]}
+      // 패널을 접고 펼 때 무대 폭이 매 프레임 바뀌므로 크기를 지연 없이 따라간다
+      resize={{ debounce: 0 }}
       camera={{ position: view.pos.toArray(), fov: 30, near: 1, far: 2600 }}
       onPointerMissed={(e) => {
         // 3D 위에 떠 있는 HTML 라벨(도크·시설 태그)을 누른 클릭은 빈 곳 클릭으로 보지 않는다
