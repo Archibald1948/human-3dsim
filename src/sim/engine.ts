@@ -180,6 +180,7 @@ export interface Dock {
   truckId: string | null
   maintUntil: number | null
   maintPending: boolean
+  closed: boolean // 조작판에서 운영 도크 수를 줄여 닫은 도크 (새 배정 없음)
   turns: number
   pallets: number
   busySec: number
@@ -367,6 +368,9 @@ export class Site {
   lanes: string[][]
   events: SimEvent[] = []
   gateLog: GateLog[] = []
+  // 조작판 값 (기본값이면 원래 동작과 같다)
+  volume = 1
+  private flCap = Infinity
   stats = {
     done: 0,
     onTime: 0,
@@ -427,7 +431,7 @@ export class Site {
       }
     }
     Lg.dockXs.forEach((x, i) =>
-      this.docks.push({ id: `D${String(i + 1).padStart(2, '0')}`, idx: i, x, truckId: null, maintUntil: null, maintPending: false, turns: 0, pallets: 0, busySec: 0, serviceSum: 0 }),
+      this.docks.push({ id: `D${String(i + 1).padStart(2, '0')}`, idx: i, x, truckId: null, maintUntil: null, maintPending: false, closed: false, turns: 0, pallets: 0, busySec: 0, serviceSum: 0 }),
     )
     this.now = t0
     const W = Lg.wall
@@ -519,7 +523,7 @@ export class Site {
 
   // ───────── 조회 헬퍼 ─────────
   dockState(d: Dock): DockState {
-    if (d.maintUntil != null) return 'maintenance'
+    if (d.maintUntil != null || (d.closed && !d.truckId)) return 'maintenance'
     if (!d.truckId) return 'free'
     const tr = this.trucks.get(d.truckId)
     return tr && tr.phase === 'docked' ? 'occupied' : 'reserved'
@@ -584,7 +588,7 @@ export class Site {
     while (this.nextPlan < t + PLAN_AHEAD) {
       const ws = this.nextPlan
       for (const dir of ['in', 'out'] as Dir[]) {
-        const rate = (dir === 'in' ? this.cfg.inPerHr : this.cfg.outPerHr) / 2
+        const rate = ((dir === 'in' ? this.cfg.inPerHr : this.cfg.outPerHr) * this.volume) / 2
         const n = Math.floor(rate) + (this.rng.chance(rate - Math.floor(rate)) ? 1 : 0)
         for (let i = 0; i < n; i++) this.createShipment(dir, ws)
       }
@@ -873,7 +877,7 @@ export class Site {
 
   private assignDocks(t: number) {
     for (let guard = 0; guard < 6; guard++) {
-      const free = this.docks.filter((d) => !d.truckId && d.maintUntil == null && !d.maintPending)
+      const free = this.docks.filter((d) => !d.truckId && d.maintUntil == null && !d.maintPending && !d.closed)
       if (!free.length) return
       const heads = this.lanes
         .map((q, lane) => ({ lane, tr: q.length ? this.trucks.get(q[0])! : null }))
@@ -1336,7 +1340,8 @@ export class Site {
       this.requestTrip(f, 'toCharge', Lg.chargerSpots[ci], t)
       this.log(t, 'info', `${f.id} 배터리 ${Math.round(f.battery)}% · 충전소 이동`, { kind: 'forklift', id: f.id })
     }
-    const avail = this.forklifts.filter((f) => f.state === 'idle' && f.battery >= BATTERY_LOW && !f.want && !f.pending && !f.target)
+    // 투입 대수를 줄이면 뒤 번호 지게차는 새 작업을 받지 않고 대기 칸으로 빠진다
+    const avail = this.forklifts.filter((f, i) => i < this.flCap && f.state === 'idle' && f.battery >= BATTERY_LOW && !f.want && !f.pending && !f.target)
     if (!avail.length) return
     // 도크 작업 위치마다 지게차 최대 2대가 시간을 나눠 쓴다 (같은 자리에 동시에 서는 일은 예약이 막는다)
     const locked = new Map<string, number>()
@@ -1629,6 +1634,39 @@ export class Site {
     this.heatVersion++
   }
 
+  // ───────── 조작판: 물동량·지게차 투입·운영 도크 ─────────
+  // 물동량은 아직 계획하지 않은 슬롯부터 적용된다 (이미 잡힌 예약은 그대로)
+  setVolume(v: number, t: number) {
+    if (v === this.volume) return
+    this.volume = v
+    this.log(t, 'info', `물동량 ${Math.round(v * 100)}%로 조정 · 다음 예약부터 반영`, null)
+  }
+  setForkliftCap(n: number, t: number) {
+    n = Math.max(1, Math.min(this.forklifts.length, Math.round(n)))
+    if (n === this.flCap) return
+    this.flCap = n
+    this.log(t, 'info', `지게차 투입 ${n}대로 조정`, null)
+  }
+  get forkliftCap() {
+    return Math.min(this.flCap, this.forklifts.length)
+  }
+  // 뒤 번호 도크부터 닫는다. 트럭이 붙어 있으면 그 작업은 끝까지 하고 새 배정만 막는다
+  setDockCap(n: number, t: number) {
+    n = Math.max(1, Math.min(this.docks.length, Math.round(n)))
+    let changed = false
+    this.docks.forEach((d, i) => {
+      const close = i >= n
+      if (d.closed !== close) {
+        d.closed = close
+        changed = true
+      }
+    })
+    if (changed) this.log(t, 'info', `운영 도크 ${n}개로 조정`, null)
+  }
+  get dockCap() {
+    return this.docks.filter((d) => !d.closed).length
+  }
+
   // ───────── 이벤트 시나리오 ─────────
   triggerScenario(kind: ScenarioKind, t: number): ScenarioResult {
     switch (kind) {
@@ -1697,7 +1735,7 @@ export class Site {
 
   // ───────── KPI ─────────
   kpis(t: number) {
-    const opDocks = this.docks.filter((d) => d.maintUntil == null)
+    const opDocks = this.docks.filter((d) => d.maintUntil == null && !d.closed)
     const occupied = this.docks.filter((d) => this.dockState(d) === 'occupied').length
     const yard = this.yardTrucks()
     const waits = yard.map((tr) => this.dwellSoFar(tr, t))
