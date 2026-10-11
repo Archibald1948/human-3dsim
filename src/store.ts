@@ -63,6 +63,7 @@ interface UiState {
   setTraffic: (v: number) => void
   setCrowd: (v: number) => void
   togglePanel: (k: PanelKey) => void
+  setAllPanels: (v: boolean) => void
   toast: Toast | null
   fly: { x: number; z: number; n: number } | null
   flyTo: (x: number, z: number) => void
@@ -100,6 +101,7 @@ export const useUi = create<UiState>((set) => ({
   setTraffic: (traffic) => set({ traffic }),
   setCrowd: (crowd) => set({ crowd }),
   togglePanel: (k) => set((s) => ({ panels: savePanels({ ...s.panels, [k]: !s.panels[k] }) })),
+  setAllPanels: (v) => set({ panels: savePanels({ side: v, insp: v, tl: v }) }),
   toast: null,
   fly: null,
   flyTo: (x, z) => set((s) => ({ fly: { x, z, n: (s.fly?.n ?? 0) + 1 } })),
