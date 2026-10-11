@@ -3,7 +3,8 @@ import { World, type Sel, type ScenarioKind } from './sim/engine'
 
 export const world = new World()
 
-export const SPEEDS = [0, 20, 80, 300] as const
+// 시뮬레이션은 멈추지 않는다: 일시정지 없이 배속만 고른다
+export const SPEEDS = [20, 80, 300] as const
 export type ViewMode = 'base' | 'stock' | 'traffic'
 export type LightMode = 'auto' | 'day'
 // 건물: 자동(확대·선택·재고/동선 모드에서 단면) / 내부(항상 단면) / 외관(항상 지붕·벽)
