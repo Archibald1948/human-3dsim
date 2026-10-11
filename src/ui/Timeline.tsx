@@ -19,6 +19,7 @@ export function Timeline() {
   const siteId = useUi((s) => s.siteId)
   const sel = useUi((s) => s.sel)
   const select = useUi((s) => s.select)
+  const shown = useUi((s) => s.panels.tl)
   const [filter, setFilter] = useState<Filter>('all')
   const site: Site = world.site(siteId)
   const t = world.time
@@ -56,7 +57,7 @@ export function Timeline() {
   }, [siteId, filter])
 
   return (
-    <section className="tl" aria-label="입출고 타임라인">
+    <section className="tl" aria-label="입출고 타임라인" inert={!shown}>
       <div className="tl-head">
         <div className="tl-title">
           <h2>입출고 타임라인</h2>
