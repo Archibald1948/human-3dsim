@@ -59,8 +59,8 @@ export function TopBar() {
           <path d="M6 17V8M10 17V8M6 10.5h4M6 14h4M14 17V8M18 17V8M14 10.5h4M14 14h4" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
         </svg>
         <div className="brand-text">
-          <strong>Hubline</strong>
-          <span>창고 관제</span>
+          <strong>human-3dsim</strong>
+          <span>물류 도시 시뮬레이션</span>
         </div>
       </div>
 
