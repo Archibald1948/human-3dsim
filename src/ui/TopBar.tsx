@@ -7,7 +7,7 @@ function tone(pct: number) {
 
 // 패널 접기 버튼: 창 테두리 안에서 해당 패널 자리를 칠하면 보임, 비우면 숨김
 const PANEL_BTNS: { key: PanelKey; label: string; strip: { x: number; y: number; w: number; h: number }; line: string }[] = [
-  { key: 'side', label: '왼쪽 지표', strip: { x: 2, y: 3, w: 4, h: 10 }, line: 'M6.25 3v10' },
+  { key: 'side', label: '왼쪽 조작판', strip: { x: 2, y: 3, w: 4, h: 10 }, line: 'M6.25 3v10' },
   { key: 'tl', label: '아래 타임라인', strip: { x: 2, y: 9, w: 12, h: 4 }, line: 'M2 8.75h12' },
   { key: 'insp', label: '오른쪽 상세', strip: { x: 10, y: 3, w: 4, h: 10 }, line: 'M9.75 3v10' },
 ]
