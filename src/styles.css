@@ -86,26 +86,52 @@ p {
   grid-template-columns: minmax(0, 1fr);
 }
 .main {
+  /* 패널 크기와 실제 트랙 크기를 나눠, 접으면 트랙만 0으로 줄고 패널은 제 크기로 바깥에 밀려난다 */
+  --side-w: 288px;
+  --insp-w: 344px;
+  --tl-h: 248px;
+  --side-track: var(--side-w);
+  --insp-track: var(--insp-w);
+  --tl-track: var(--tl-h);
   min-height: 0;
   min-width: 0;
+  overflow: hidden;
   display: grid;
-  grid-template-columns: 288px minmax(0, 1fr) 344px;
-  grid-template-rows: minmax(0, 1fr) 248px;
+  grid-template-columns: var(--side-track) minmax(0, 1fr) var(--insp-track);
+  grid-template-rows: minmax(0, 1fr) var(--tl-track);
   grid-template-areas:
     'side stage insp'
     'side tl insp';
+  transition:
+    grid-template-columns 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    grid-template-rows 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.main.no-side {
+  --side-track: 0px;
+}
+.main.no-insp {
+  --insp-track: 0px;
+}
+.main.no-tl {
+  --tl-track: 0px;
 }
 .side {
   grid-area: side;
+  width: var(--side-w);
+  justify-self: end;
 }
 .stage {
   grid-area: stage;
 }
 .insp {
   grid-area: insp;
+  width: var(--insp-w);
+  justify-self: start;
 }
 .tl {
   grid-area: tl;
+  height: var(--tl-h);
+  align-self: start;
 }
 
 /* ───────── 상단 바 ───────── */
@@ -286,6 +312,37 @@ p {
 .speed button.is-on {
   background: var(--ink);
   color: #fff;
+}
+.panel-toggles {
+  display: flex;
+  gap: 2px;
+}
+.panel-toggles button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.panel-toggles button:hover {
+  background: var(--fill);
+  color: var(--ink-2);
+}
+.panel-toggles button:active svg {
+  transform: scale(0.92);
+}
+.panel-toggles button[aria-pressed='true'] {
+  color: var(--ink);
+}
+.pt-strip {
+  fill: transparent;
+}
+.panel-toggles button[aria-pressed='true'] .pt-strip {
+  fill: currentColor;
 }
 
 /* ───────── 공통 패널 ───────── */
@@ -504,6 +561,9 @@ p {
 }
 .stage canvas {
   touch-action: none;
+  /* 패널을 접고 펼 때 렌더 크기가 몇 프레임 늦게 따라와도 빈 틈 대신 잠깐 늘여 보이게 */
+  width: 100% !important;
+  height: 100% !important;
 }
 .stage-hint {
   position: absolute;
@@ -1355,7 +1415,8 @@ p {
 /* ───────── 반응형 ───────── */
 @media (max-width: 1360px) {
   .main {
-    grid-template-columns: 264px minmax(0, 1fr) 320px;
+    --side-w: 264px;
+    --insp-w: 320px;
   }
   .site-name {
     display: none;
@@ -1366,14 +1427,21 @@ p {
 }
 @media (max-width: 1120px) {
   .main {
-    grid-template-columns: minmax(0, 1fr) 320px;
-    grid-template-rows: auto minmax(0, 1fr) 240px;
+    --tl-h: 240px;
+    grid-template-columns: minmax(0, 1fr) var(--insp-track);
+    grid-template-rows: auto minmax(0, 1fr) var(--tl-track);
     grid-template-areas:
       'side side'
       'stage insp'
       'tl insp';
   }
+  /* 지표가 위 한 줄이 되는 폭에서는 접으면 바로 사라진다 */
+  .main.no-side .side {
+    display: none;
+  }
   .side {
+    width: auto;
+    justify-self: stretch;
     flex-direction: row;
     overflow: hidden;
     border-right: 0;
@@ -1432,6 +1500,15 @@ p {
   .main {
     display: flex;
     flex-direction: column;
+    overflow: visible;
+  }
+  .main.no-side .side,
+  .main.no-insp .insp,
+  .main.no-tl .tl {
+    display: none;
+  }
+  .insp {
+    width: auto;
   }
   .main > * {
     min-width: 0;
@@ -1477,6 +1554,9 @@ p {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .main {
+    transition: none;
+  }
   .live::before {
     animation: none;
   }
