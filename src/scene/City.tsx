@@ -318,8 +318,8 @@ function Cars({ plan, seed }: { plan: CityPlan; seed: number }) {
   }, [plan, movers, seed])
 
   useFrame((_, dt) => {
-    // 시뮬레이션을 멈추면 차도 멈춘다
-    const step = useUi.getState().speed > 0 ? Math.min(dt, 0.1) : 0
+    // 시뮬레이션은 멈추지 않으므로 차도 늘 실제 시간으로 움직인다
+    const step = Math.min(dt, 0.1)
     clock.current += step
     const b = body.current
     const c = cabin.current
