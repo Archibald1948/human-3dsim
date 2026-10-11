@@ -10,7 +10,7 @@ import { useUi, world } from '../store'
 import { CAR_COLORS, CONE_COLORS, P, TREE_COLORS } from './palette'
 import { nightMats } from './nightMats'
 import { box, cyl, merged, vcMatMatte, type Part } from './merge'
-import { cityPlan } from './cityPlan'
+import { cityPlan, inRiver } from './cityPlan'
 
 const tmp = new THREE.Object3D()
 const OFFICE_WHITE = '#F3F4F6'
@@ -55,7 +55,7 @@ function useTrees(site: Site): Tree[] {
       for (let i = 0; i < n; i++) {
         const x = cx + r.range(-16, 16)
         const z = cz + r.range(-16, 16)
-        if (inRect(x, z, B) || (z > 27 && z < 48)) continue
+        if (inRect(x, z, B) || (z > 27 && z < 48) || inRiver(cityPlan(site).river, x, z, 3)) continue
         add(x, z, r.range(0.9, 1.6))
       }
     }
