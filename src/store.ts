@@ -17,6 +17,29 @@ export interface Toast {
 }
 let toastSeq = 0
 
+// 접을 수 있는 패널: 왼쪽 지표, 오른쪽 상세, 아래 타임라인 (true = 보임)
+export type PanelKey = 'side' | 'insp' | 'tl'
+export type Panels = Record<PanelKey, boolean>
+const PANELS_KEY = 'hubline.panels'
+function loadPanels(): Panels {
+  const all: Panels = { side: true, insp: true, tl: true }
+  try {
+    const v = JSON.parse(localStorage.getItem(PANELS_KEY) ?? 'null')
+    if (v && typeof v === 'object') for (const k of Object.keys(all) as PanelKey[]) if (typeof v[k] === 'boolean') all[k] = v[k]
+  } catch {
+    // 저장소를 못 쓰면 모두 보이는 기본값
+  }
+  return all
+}
+function savePanels(p: Panels): Panels {
+  try {
+    localStorage.setItem(PANELS_KEY, JSON.stringify(p))
+  } catch {
+    // 저장 실패는 무시 (이번 세션에서만 유지)
+  }
+  return p
+}
+
 interface UiState {
   siteId: string
   sel: Sel | null
@@ -29,6 +52,8 @@ interface UiState {
   lightMode: LightMode
   buildingMode: BuildingMode
   searchOpen: boolean
+  panels: Panels
+  togglePanel: (k: PanelKey) => void
   toast: Toast | null
   fly: { x: number; z: number; n: number } | null
   flyTo: (x: number, z: number) => void
@@ -58,6 +83,8 @@ export const useUi = create<UiState>((set) => ({
   lightMode: 'auto',
   buildingMode: 'auto',
   searchOpen: false,
+  panels: loadPanels(),
+  togglePanel: (k) => set((s) => ({ panels: savePanels({ ...s.panels, [k]: !s.panels[k] }) })),
   toast: null,
   fly: null,
   flyTo: (x, z) => set((s) => ({ fly: { x, z, n: (s.fly?.n ?? 0) + 1 } })),
@@ -75,7 +102,13 @@ export const useUi = create<UiState>((set) => ({
   clearToast: (id) => set((s) => (s.toast?.id === id ? { toast: null } : s)),
   setSite: (id) => set({ siteId: id, sel: null, hover: null, follow: false }),
   select: (sel, focus = true) =>
-    set((s) => ({ sel, follow: sel && s.sel && sel.kind === s.sel.kind && sel.id === s.sel.id ? s.follow : false, focusNonce: focus ? s.focusNonce + 1 : s.focusNonce })),
+    set((s) => ({
+      sel,
+      // 무언가를 고르면 숨겨 둔 상세 패널을 다시 연다 (내용을 볼 곳이 없으므로)
+      panels: sel && !s.panels.insp ? savePanels({ ...s.panels, insp: true }) : s.panels,
+      follow: sel && s.sel && sel.kind === s.sel.kind && sel.id === s.sel.id ? s.follow : false,
+      focusNonce: focus ? s.focusNonce + 1 : s.focusNonce,
+    })),
   setHover: (hover) => set((s) => (sameSel(s.hover, hover) || (!s.hover && !hover) ? s : { hover })),
   setSpeed: (speed) => {
     world.speed = speed
