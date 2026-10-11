@@ -1,8 +1,33 @@
-import { SPEEDS, useUi, world } from '../store'
+import { SPEEDS, useUi, world, type PanelKey } from '../store'
 import { fmtClock, fmtDate } from './labels'
 
 function tone(pct: number) {
   return pct >= 88 ? 'ok' : pct >= 78 ? 'warn' : 'crit'
+}
+
+// 패널 접기 버튼: 창 테두리 안에서 해당 패널 자리를 칠하면 보임, 비우면 숨김
+const PANEL_BTNS: { key: PanelKey; label: string; strip: { x: number; y: number; w: number; h: number }; line: string }[] = [
+  { key: 'side', label: '왼쪽 지표', strip: { x: 2, y: 3, w: 4, h: 10 }, line: 'M6.25 3v10' },
+  { key: 'tl', label: '아래 타임라인', strip: { x: 2, y: 9, w: 12, h: 4 }, line: 'M2 8.75h12' },
+  { key: 'insp', label: '오른쪽 상세', strip: { x: 10, y: 3, w: 4, h: 10 }, line: 'M9.75 3v10' },
+]
+
+function PanelToggles() {
+  const panels = useUi((s) => s.panels)
+  const toggle = useUi((s) => s.togglePanel)
+  return (
+    <div className="panel-toggles" role="group" aria-label="패널 보이기">
+      {PANEL_BTNS.map(({ key, label, strip, line }) => (
+        <button key={key} type="button" aria-pressed={panels[key]} aria-label={`${label} 패널`} title={`${label} ${panels[key] ? '숨기기' : '보이기'}`} onClick={() => toggle(key)}>
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+            <rect className="pt-strip" x={strip.x} y={strip.y} width={strip.w} height={strip.h} />
+            <path d={line} stroke="currentColor" strokeWidth="1.3" />
+            <rect x="1.65" y="2.65" width="12.7" height="10.7" rx="2" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          </svg>
+        </button>
+      ))}
+    </div>
+  )
 }
 
 export function TopBar() {
@@ -70,6 +95,7 @@ export function TopBar() {
             </button>
           ))}
         </div>
+        <PanelToggles />
       </div>
     </header>
   )
