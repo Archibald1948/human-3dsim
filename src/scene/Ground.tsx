@@ -7,6 +7,7 @@ import type { Site } from '../sim/engine'
 import { Rng } from '../sim/rng'
 import { CONTAINER_COLORS, P, SHRUB_COLORS } from './palette'
 import { box, cyl, merged, vcMat, type Part } from './merge'
+import { groundGeometry } from './River'
 
 type V3 = [number, number, number]
 interface Mark {
@@ -124,6 +125,7 @@ export function Ground({ site }: { site: Site }) {
   const W = Lg.wall
   const H = Lg.holding
   const C = Lg.campus
+  const groundGeo = useMemo(() => groundGeometry(site), [site])
   const dockXs = Lg.dockXs
   const key = site.cfg.id
   const ROAD_Z0 = 30.4
@@ -284,8 +286,8 @@ export function Ground({ site }: { site: Site }) {
 
   return (
     <group>
-      <mesh rotation-x={-Math.PI / 2} position={[0, -0.06, 0]} receiveShadow>
-        <planeGeometry args={[2400, 2400]} />
+      {/* 지면: 강이 있으면 강 띠를 비운 두 조각 */}
+      <mesh geometry={groundGeo} position={[0, -0.06, 0]} receiveShadow>
         <meshStandardMaterial color={P.ground} roughness={1} />
       </mesh>
       {/* 캠퍼스 잔디 */}
