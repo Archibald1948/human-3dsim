@@ -122,7 +122,7 @@ function useSignTextures() {
       g.fillStyle = '#ffffff'
       g.textAlign = 'left'
       g.font = `800 128px 'Pretendard Variable', Pretendard, Arial, sans-serif`
-      g.fillText('HUBLINE', 206, 104)
+      g.fillText('HUMAN', 206, 104)
     }
     const map = canvasTex(1024, 192, (g) => draw(g, false))
     const glow = canvasTex(1024, 192, (g) => draw(g, true))
