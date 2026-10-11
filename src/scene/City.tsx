@@ -285,10 +285,12 @@ function Cars({ plan, seed }: { plan: CityPlan; seed: number }) {
   const body = useRef<THREE.InstancedMesh>(null)
   const cabin = useRef<THREE.InstancedMesh>(null)
   const clock = useRef(0)
+  // 교통량을 바꾸면 차량을 새로 깐다 (차로 순서·간격을 처음부터 맞추는 편이 단순하다)
+  const traffic = useUi((s) => s.traffic)
   const sim = useMemo(() => {
     const lanes = lanesOf(plan)
-    return { lanes, movers: spawnCars(plan, lanes, seed) }
-  }, [plan, seed])
+    return { lanes, movers: spawnCars(plan, lanes, seed, traffic) }
+  }, [plan, seed, traffic])
   const movers = sim.movers
   const total = plan.parked.length + movers.length
 
