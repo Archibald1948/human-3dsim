@@ -667,6 +667,7 @@ export function Inspector() {
   useUi((s) => s.tick)
   const sel = useUi((s) => s.sel)
   const select = useUi((s) => s.select)
+  const shown = useUi((s) => s.panels.insp)
   const siteId = useUi((s) => s.siteId)
   const site = world.site(siteId)
   const close = () => select(null, false)
@@ -695,7 +696,11 @@ export function Inspector() {
       body = <FacilityView site={site} id={sel.id as FacilityId} onClose={close} />
     }
   }
-  return <aside className="insp">{body}</aside>
+  return (
+    <aside className="insp" inert={!shown}>
+      {body}
+    </aside>
+  )
 }
 
 function Gone({ onClose }: { onClose: () => void }) {
