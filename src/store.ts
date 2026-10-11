@@ -23,7 +23,7 @@ let toastSeq = 0
 // 접을 수 있는 패널: 왼쪽 지표, 오른쪽 상세, 아래 타임라인 (true = 보임)
 export type PanelKey = 'side' | 'insp' | 'tl'
 export type Panels = Record<PanelKey, boolean>
-const PANELS_KEY = 'hubline.panels'
+const PANELS_KEY = 'human-3dsim.panels'
 function loadPanels(): Panels {
   const all: Panels = { side: true, insp: true, tl: true }
   try {
