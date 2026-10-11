@@ -11,6 +11,7 @@ import { Minimap } from './ui/Minimap'
 
 export default function App() {
   const bump = useUi((s) => s.bump)
+  const panels = useUi((s) => s.panels)
   useEffect(() => {
     const id = window.setInterval(bump, 250)
     return () => window.clearInterval(id)
@@ -27,7 +28,7 @@ export default function App() {
   return (
     <div className="app">
       <TopBar />
-      <main className="main">
+      <main className={`main${panels.side ? '' : ' no-side'}${panels.insp ? '' : ' no-insp'}${panels.tl ? '' : ' no-tl'}`}>
         <SidePanel />
         <div className="stage">
           <Scene />
