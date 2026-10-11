@@ -11,7 +11,7 @@ import { P } from './palette'
 import { nightMats } from './nightMats'
 import { box, cyl, merged, vcMat, vcMatMatte, type Part } from './merge'
 import { cityPlan, CITY_CARS, type Bldg, type CityPlan, type Road } from './cityPlan'
-import { lanesOf, spawnCars, stepCars } from './cityTraffic'
+import { carPose, lanesOf, spawnCars, stepCars } from './cityTraffic'
 
 type V3 = [number, number, number]
 const SIDEWALK = 2.6
@@ -279,6 +279,7 @@ carCabin.translate(0, 1.15, -0.15)
 const carMat = new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0.2 })
 const glassMat = new THREE.MeshStandardMaterial({ color: P.glass, roughness: 0.25, metalness: 0.3 })
 const tmp = new THREE.Object3D()
+const pose = { x: 0, z: 0, h: 0 }
 
 function Cars({ plan, seed }: { plan: CityPlan; seed: number }) {
   const body = useRef<THREE.InstancedMesh>(null)
@@ -325,9 +326,9 @@ function Cars({ plan, seed }: { plan: CityPlan; seed: number }) {
     const t = clock.current
     if (step > 0) stepCars(sim.lanes, movers, t, step)
     movers.forEach((mv, k) => {
-      const ln = plan.lanes[mv.lane]
-      tmp.position.set(ln.x + ln.dx * mv.s, 0, ln.z + ln.dz * mv.s)
-      tmp.rotation.set(0, Math.atan2(ln.dx, ln.dz), 0)
+      carPose(sim.lanes, mv, pose)
+      tmp.position.set(pose.x, 0, pose.z)
+      tmp.rotation.set(0, pose.h, 0)
       tmp.updateMatrix()
       b.setMatrixAt(base + k, tmp.matrix)
       c.setMatrixAt(base + k, tmp.matrix)
