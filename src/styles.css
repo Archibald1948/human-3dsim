@@ -659,7 +659,10 @@ p {
 }
 .stage canvas {
   touch-action: none;
-  /* 패널을 접고 펼 때 렌더 크기가 몇 프레임 늦게 따라와도 빈 틈 대신 잠깐 늘여 보이게 */
+}
+/* 패널을 접고 펼 때 렌더 크기가 몇 프레임 늦게 따라와도 빈 틈 대신 잠깐 늘여 보이게.
+   3D 캔버스(무대 첫 자식)만 대상: 미니맵 캔버스까지 늘어나면 안 된다 */
+.stage > div:first-child canvas {
   width: 100% !important;
   height: 100% !important;
 }
