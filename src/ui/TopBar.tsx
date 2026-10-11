@@ -77,21 +77,14 @@ export function TopBar() {
 
       <div className="clock-group">
         <div className="clock" aria-live="off">
-          <span className={`live${speed ? '' : ' is-paused'}`}>{speed ? 'LIVE' : '일시정지'}</span>
+          <span className="live">LIVE</span>
           <span className="clock-date">{fmtDate(world.day0, t)}</span>
           <strong className="clock-time">{fmtClock(t, true)}</strong>
         </div>
         <div className="speed" role="group" aria-label="시뮬레이션 속도">
           {SPEEDS.map((s) => (
-            <button key={s} type="button" className={speed === s ? 'is-on' : ''} onClick={() => setSpeed(s)} title={s ? `실제 1초 = ${s}초` : '일시정지'}>
-              {s === 0 ? (
-                <svg viewBox="0 0 12 12" width="10" height="10" aria-label="일시정지">
-                  <rect x="2" y="1.5" width="2.6" height="9" rx="0.6" fill="currentColor" />
-                  <rect x="7.4" y="1.5" width="2.6" height="9" rx="0.6" fill="currentColor" />
-                </svg>
-              ) : (
-                `${s}×`
-              )}
+            <button key={s} type="button" className={speed === s ? 'is-on' : ''} onClick={() => setSpeed(s)} title={`실제 1초 = ${s}초`}>
+              {s}×
             </button>
           ))}
         </div>
