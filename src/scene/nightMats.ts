@@ -29,5 +29,6 @@ export const nightMats = {
   // 도시 건물 외벽 (창 격자 텍스처 × 정점 색). 밤에는 켜진 창만 빛난다 (map·emissiveMap은 City가 채움)
   cityPunch: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, emissive: new THREE.Color('#ffd9a0'), emissiveIntensity: 0 }),
   cityRibbon: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.05, emissive: new THREE.Color('#fff0d6'), emissiveIntensity: 0 }),
+  cityCurtain: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.1, emissive: new THREE.Color('#e8f0ff'), emissiveIntensity: 0 }),
 }
 nightMats.interior.map = nightMats.pool.map
