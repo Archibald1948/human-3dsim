@@ -19,6 +19,9 @@ import { P } from './palette'
 
 import type { Site } from '../sim/engine'
 import { People } from './People'
+import { Sky } from './Sky'
+import { River } from './River'
+import { Pedestrians } from './Pedestrians'
 
 const BASE_OFFSET = new THREE.Vector3(47, 56, 74)
 
@@ -133,11 +136,14 @@ export function Scene() {
       <fog attach="fog" args={[P.bg, 260 * view.scale, 820 * view.scale]} />
       <SimDriver />
       <Lighting site={site} />
+      <Sky site={site} />
       <group key={siteId}>
         <Ground site={site} />
         <Building site={site} />
         <Surroundings site={site} />
         <City site={site} />
+        <River site={site} />
+        <Pedestrians site={site} />
         <YardLights site={site} />
         {viewMode === 'traffic' && <HeatLayer site={site} />}
         <Racks site={site} />
