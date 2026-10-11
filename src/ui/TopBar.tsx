@@ -15,8 +15,20 @@ const PANEL_BTNS: { key: PanelKey; label: string; strip: { x: number; y: number;
 function PanelToggles() {
   const panels = useUi((s) => s.panels)
   const toggle = useUi((s) => s.togglePanel)
+  const setAll = useUi((s) => s.setAllPanels)
+  // 하나라도 보이면 모두 닫고, 모두 닫혀 있으면 모두 연다
+  const any = panels.side || panels.insp || panels.tl
   return (
     <div className="panel-toggles" role="group" aria-label="패널 보이기">
+      <button type="button" className="pt-all" aria-label={any ? '모든 패널 닫기' : '모든 패널 열기'} title={any ? '모든 패널 닫기' : '모든 패널 열기'} onClick={() => setAll(!any)}>
+        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+          {any ? (
+            <path d="M5 5l6 6M11 5l-6 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          ) : (
+            <path d="M5.5 2.5H2.5v3M10.5 2.5h3v3M5.5 13.5H2.5v-3M10.5 13.5h3v-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          )}
+        </svg>
+      </button>
       {PANEL_BTNS.map(({ key, label, strip, line }) => (
         <button key={key} type="button" aria-pressed={panels[key]} aria-label={`${label} 패널`} title={`${label} ${panels[key] ? '숨기기' : '보이기'}`} onClick={() => toggle(key)}>
           <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
