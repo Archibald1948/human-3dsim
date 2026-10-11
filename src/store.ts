@@ -7,6 +7,8 @@ export const world = new World()
 export const SPEEDS = [20, 80, 300] as const
 export type ViewMode = 'base' | 'stock' | 'traffic'
 export type LightMode = 'auto' | 'day'
+// 도시 조건: 날씨(구름 양·비), 교통량·보행자 배율 (1 = 기본)
+export type Weather = 'clear' | 'cloudy' | 'rain'
 // 건물: 자동(확대·선택·재고/동선 모드에서 단면) / 내부(항상 단면) / 외관(항상 지붕·벽)
 export type BuildingMode = 'auto' | 'inside' | 'outside'
 export interface Toast {
@@ -54,6 +56,12 @@ interface UiState {
   buildingMode: BuildingMode
   searchOpen: boolean
   panels: Panels
+  weather: Weather
+  traffic: number
+  crowd: number
+  setWeather: (w: Weather) => void
+  setTraffic: (v: number) => void
+  setCrowd: (v: number) => void
   togglePanel: (k: PanelKey) => void
   toast: Toast | null
   fly: { x: number; z: number; n: number } | null
@@ -85,6 +93,12 @@ export const useUi = create<UiState>((set) => ({
   buildingMode: 'auto',
   searchOpen: false,
   panels: loadPanels(),
+  weather: 'clear',
+  traffic: 1,
+  crowd: 1,
+  setWeather: (weather) => set({ weather }),
+  setTraffic: (traffic) => set({ traffic }),
+  setCrowd: (crowd) => set({ crowd }),
   togglePanel: (k) => set((s) => ({ panels: savePanels({ ...s.panels, [k]: !s.panels[k] }) })),
   toast: null,
   fly: null,
