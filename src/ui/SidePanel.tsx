@@ -6,13 +6,14 @@ export function SidePanel() {
   useUi((s) => s.tick)
   const siteId = useUi((s) => s.siteId)
   const select = useUi((s) => s.select)
+  const shown = useUi((s) => s.panels.side)
   const site = world.site(siteId)
   const t = world.time
   const k = site.kpis(t)
   const onTone = k.onTimePct >= 88 ? 'ok' : k.onTimePct >= 78 ? 'warn' : 'crit'
 
   return (
-    <aside className="side">
+    <aside className="side" inert={!shown}>
       <div className="panel-head">
         <h2>운영 지표</h2>
         <span className="muted">오늘 누적</span>
