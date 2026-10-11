@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import * as L from '../sim/layout'
 import type { Site } from '../sim/engine'
 import { useUi, world } from '../store'
+import type { LightMode, Weather } from '../store'
 import { P } from './palette'
 import { nightMats } from './nightMats'
 import { box, cyl, merged, vcMat } from './merge'
@@ -18,6 +19,33 @@ export function daylight(t: number): number {
   const h = (((t % 86400) + 86400) % 86400) / 3600
   return sstep(5.4, 7.0, h) * (1 - sstep(18.2, 19.8, h))
 }
+
+// 해·달 조명의 겨냥점과 위치. Sky가 같은 방향에 해·달 원반을 그리도록 공유한다
+export const lightTargetZ = (Lg: Site['layout']) => (Lg.wall.z0 + 30) / 2
+
+export function sunAngle(t: number): number {
+  const h = (((t % 86400) + 86400) % 86400) / 3600
+  return Math.max(0.2, Math.min(Math.PI - 0.2, ((h - 6) / 12) * Math.PI))
+}
+
+export type SunKind = 'sun' | 'noon' | 'moon'
+
+export function sunPose(t: number, mode: LightMode, Lg: Site['layout'], out: THREE.Vector3): SunKind {
+  if (mode === 'auto' && daylight(t) > 0.02) {
+    const th = sunAngle(t)
+    out.set(Math.cos(th) * 150, 50 + Math.sin(th) * 120, 90 + lightTargetZ(Lg))
+    return 'sun'
+  }
+  if (mode === 'day') {
+    out.set(70, 150, 90)
+    return 'noon'
+  }
+  out.set(-80, 130, 60)
+  return 'moon'
+}
+
+// 날씨에 따른 조명 세기 배율 (흐리면 조금, 비 오면 더 어둡게)
+export const weatherDim = (w: Weather) => (w === 'rain' ? 0.7 : w === 'cloudy' ? 0.85 : 1)
 
 const C = {
   bgDay: new THREE.Color(P.bg),
@@ -39,6 +67,7 @@ export function Lighting({ site }: { site: Site }) {
   const scene = useThree((s) => s.scene)
   const tmp = useMemo(() => new THREE.Color(), [])
   const dayRef = useRef(-1)
+  const dim = useRef(1)
   const Lg = site.layout
   const half = Math.max(Lg.width / 2 + 45, 70)
 
@@ -52,37 +81,35 @@ export function Lighting({ site }: { site: Site }) {
     cam.bottom = -half * 0.8
     cam.far = 420
     cam.updateProjectionMatrix()
-    s.target.position.set(0, 0, (Lg.wall.z0 + 30) / 2)
+    s.target.position.set(0, 0, lightTargetZ(Lg))
     s.target.updateMatrixWorld()
   }, [half, Lg])
 
-  useFrame(() => {
-    const mode = useUi.getState().lightMode
+  useFrame((_, dt) => {
+    const { lightMode: mode, weather } = useUi.getState()
     const day = mode === 'day' ? 1 : daylight(world.time)
-    const h = (((world.time % 86400) + 86400) % 86400) / 3600
+    // 날씨가 바뀌면 조명이 툭 끊기지 않게 서서히 따라간다
+    dim.current += (weatherDim(weather) - dim.current) * Math.min(1, Math.min(dt, 0.1) * 1.5)
     if (scene.background instanceof THREE.Color) scene.background.copy(C.bgNight).lerp(C.bgDay, day)
     if (scene.fog) (scene.fog as THREE.Fog).color.copy(C.bgNight).lerp(C.bgDay, day)
     if (hemi.current) {
-      hemi.current.intensity = 0.55 + 1.15 * day
+      hemi.current.intensity = (0.55 + 1.15 * day) * dim.current
       hemi.current.color.copy(C.skyNight).lerp(C.skyDay, day)
       hemi.current.groundColor.copy(C.gndNight).lerp(C.gndDay, day)
     }
     if (sun.current) {
       const s = sun.current
-      if (day > 0.02 && mode === 'auto') {
-        const th = Math.max(0.2, Math.min(Math.PI - 0.2, ((h - 6) / 12) * Math.PI))
-        s.position.set(Math.cos(th) * 150, 50 + Math.sin(th) * 120, 90 + (Lg.wall.z0 + 30) / 2)
-        const dusk = 1 - Math.sin(th)
+      const kind = sunPose(world.time, mode, Lg, s.position)
+      if (kind === 'sun') {
+        const dusk = 1 - Math.sin(sunAngle(world.time))
         tmp.copy(C.sunDay).lerp(C.sunDusk, dusk * 0.8)
         s.color.copy(C.moon).lerp(tmp, day)
-      } else if (mode === 'day') {
-        s.position.set(70, 150, 90)
+      } else if (kind === 'noon') {
         s.color.copy(C.sunDay)
       } else {
-        s.position.set(-80, 130, 60)
         s.color.copy(C.moon)
       }
-      s.intensity = 0.38 + 1.72 * day
+      s.intensity = (0.38 + 1.72 * day) * dim.current
     }
     const night = 1 - day
     if (Math.abs(night - dayRef.current) > 0.002) {
