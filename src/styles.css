@@ -260,15 +260,6 @@ p {
   background: #4ade80;
   animation: blink 1.4s infinite;
 }
-.live.is-paused {
-  background: var(--fill);
-  color: var(--ink-2);
-  letter-spacing: 0;
-}
-.live.is-paused::before {
-  background: var(--ink-3);
-  animation: none;
-}
 @keyframes blink {
   50% {
     opacity: 0.25;
