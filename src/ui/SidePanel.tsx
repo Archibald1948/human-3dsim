@@ -1,5 +1,6 @@
 import { useUi, world } from '../store'
 import { Spark } from './Spark'
+import { Controls } from './Controls'
 import { fmtClock } from './labels'
 
 export function SidePanel() {
@@ -14,7 +15,8 @@ export function SidePanel() {
 
   return (
     <aside className="side" inert={!shown}>
-      <div className="panel-head">
+      <Controls />
+      <div className="panel-head panel-head--sub">
         <h2>운영 지표</h2>
         <span className="muted">오늘 누적</span>
       </div>
