@@ -19,7 +19,7 @@ const MAIN_Z0 = 30.4
 const MAIN_Z1 = 43.2
 const BAY = 3 // 창 한 칸 폭
 const TILE = 4 // 텍스처 한 장 = 4칸 × 4층
-const FLOOR = { punch: 2.9, ribbon: 3.6, plain: 3 } as const
+const FLOOR = { punch: 2.9, ribbon: 3.6, plain: 3, curtain: 3.8 } as const
 
 // ── 외벽 텍스처: 4칸 × 4층 한 장. 바닥 쪽 행은 벽이라 지붕면 UV를 그 자리에 둔다 ──
 function canvas(draw: (g: CanvasRenderingContext2D) => void) {
@@ -32,7 +32,7 @@ function canvas(draw: (g: CanvasRenderingContext2D) => void) {
   t.anisotropy = 4
   return t
 }
-let tex: { punch: THREE.Texture; punchLit: THREE.Texture; ribbon: THREE.Texture; ribbonLit: THREE.Texture } | null = null
+let tex: { punch: THREE.Texture; punchLit: THREE.Texture; ribbon: THREE.Texture; ribbonLit: THREE.Texture; curtain: THREE.Texture; curtainLit: THREE.Texture } | null = null
 function textures() {
   if (tex) return tex
   const r = new Rng(91)
@@ -77,7 +77,33 @@ function textures() {
     g.fillStyle = '#fff'
     for (let j = 0; j < 4; j++) for (let x = 0; x < 256; x += 32) if (r.chance(0.5)) g.fillRect(x + 3, j * 64 + 4, 29, 40)
   })
-  tex = { punch, punchLit, ribbon, ribbonLit }
+  // 유리 커튼월: 층마다 얇은 스팬드럴, 칸마다 가는 멀리언, 하늘이 비치는 위아래 그라데이션
+  const curtain = canvas((g) => {
+    const grd = g.createLinearGradient(0, 0, 0, 64)
+    grd.addColorStop(0, '#B9D0E4')
+    grd.addColorStop(1, '#8FAECB')
+    for (let j = 0; j < 4; j++) {
+      g.fillStyle = grd
+      g.save()
+      g.translate(0, j * 64)
+      g.fillRect(0, 0, 256, 64)
+      g.restore()
+      g.fillStyle = '#E6ECF2'
+      g.fillRect(0, j * 64, 256, 5)
+    }
+    g.fillStyle = '#DCE3EA'
+    for (let x = 0; x < 256; x += 32) g.fillRect(x, 0, 2, 256)
+  })
+  const curtainLit = canvas((g) => {
+    g.fillStyle = '#000'
+    g.fillRect(0, 0, 256, 256)
+    g.fillStyle = '#fff'
+    for (let j = 0; j < 4; j++) for (let x = 0; x < 256; x += 32) if (r.chance(0.45)) g.fillRect(x + 2, j * 64 + 5, 30, 59)
+  })
+  tex = { punch, punchLit, ribbon, ribbonLit, curtain, curtainLit }
+  nightMats.cityCurtain.map = curtain
+  nightMats.cityCurtain.emissiveMap = curtainLit
+  nightMats.cityCurtain.needsUpdate = true
   nightMats.cityPunch.map = punch
   nightMats.cityPunch.emissiveMap = punchLit
   nightMats.cityPunch.needsUpdate = true
@@ -125,16 +151,183 @@ function at(b: Bldg, lx: number, ly: number, lz: number): V3 {
   return [b.x + lx * c + lz * s, ly, b.z - lx * s + lz * c]
 }
 
+// 박공지붕·톱니지붕용 삼각 기둥: 바닥 폭 d(z), 높이 rh, 길이 w(x). 바닥 중심이 원점
+function prism(w: number, d: number, rh: number, apex = 0.5): THREE.BufferGeometry {
+  const sh = new THREE.Shape()
+  sh.moveTo(-d / 2, 0)
+  sh.lineTo(d / 2, 0)
+  sh.lineTo(-d / 2 + d * apex, rh)
+  sh.closePath()
+  const g = new THREE.ExtrudeGeometry(sh, { depth: w, bevelEnabled: false })
+  g.translate(0, 0, -w / 2)
+  g.rotateY(Math.PI / 2)
+  return g
+}
+
+// 경기장 관중석: 안쪽이 낮고 바깥이 높은 고리 (단면을 돌려 만든 뒤 타원으로 늘림)
+function bowl(w: number, d: number, h: number): THREE.BufferGeometry {
+  const pts = [new THREE.Vector2(0.64, 0), new THREE.Vector2(1.0, 0), new THREE.Vector2(1.0, h), new THREE.Vector2(0.98, h), new THREE.Vector2(0.64, 0.8)]
+  const g = new THREE.LatheGeometry(pts, 40)
+  g.scale(w / 2, 1, d / 2)
+  return g
+}
+
+// 맨 위 층(들여 쌓기 포함)의 크기와 높이
+const top = (b: Bldg) => (b.tiers?.length ? b.tiers[b.tiers.length - 1] : { w: b.w, d: b.d, h: b.h })
+
+// 외벽이 따로 없고 부속으로만 그리는 건물
+const NO_WALL = new Set(['school', 'stadium', 'gas', 'tank', 'parkade', 'church'])
+
 function buildingParts(plan: CityPlan, seed: number): Part[] {
   const r = new Rng(seed)
   const parts: Part[] = []
   const add = (b: Bldg, w: number, h: number, d: number, lx: number, ly: number, lz: number, color: string) =>
     parts.push({ geo: box(w, h, d), pos: at(b, lx, ly, lz), rot: [0, b.rot, 0], color })
+  const geo = (b: Bldg, g: THREE.BufferGeometry, lx: number, ly: number, lz: number, color: string, ry = 0) => parts.push({ geo: g, pos: at(b, lx, ly, lz), rot: [0, b.rot + ry, 0], color })
   for (const b of plan.bldgs) {
-    // 지붕 테두리 + 옥상 설비
-    add(b, b.w + 0.3, 0.45, b.d + 0.3, 0, b.h + 0.2, 0, b.roof)
-    const units = Math.min(4, Math.floor((b.w * b.d) / 260))
-    for (let k = 0; k < units; k++) add(b, r.range(1.6, 3.2), r.range(0.9, 1.6), r.range(1.4, 2.6), r.range(-b.w / 2 + 2, b.w / 2 - 2), b.h + 0.9, r.range(-b.d / 2 + 2, b.d / 2 - 2), '#C3C9D0')
+    const T = top(b)
+    if (b.kind === 'house') {
+      // 단독주택: 박공지붕(처마 조금 내밀기) + 굴뚝
+      geo(b, prism(b.w + 0.8, b.d + 0.8, 2.6), 0, b.h, 0, b.roof)
+      if (r.chance(0.5)) add(b, 0.6, 1.8, 0.6, b.w * 0.25, b.h + 1.6, -b.d * 0.2, '#8A8F96')
+      add(b, 1.2, 2.1, 0.1, 0, 1.05, b.d / 2 + 0.05, '#6E5A4C') // 현관문
+      continue
+    }
+    if (b.kind === 'church') {
+      // 예배당: 벽 + 박공지붕 + 앞쪽 종탑과 첨탑
+      add(b, b.w, b.h, b.d, 0, b.h / 2, 0, b.color)
+      geo(b, prism(b.d + 0.6, b.w + 0.8, 5), 0, b.h, 0, b.roof, Math.PI / 2)
+      add(b, 4.4, b.h + 9, 4.4, 0, (b.h + 9) / 2, b.d / 2 + 1.6, b.color)
+      parts.push({ geo: new THREE.ConeGeometry(3, 9, 4), pos: at(b, 0, b.h + 13.5, b.d / 2 + 1.6), rot: [0, b.rot + Math.PI / 4, 0], color: b.roof })
+      add(b, 0.25, 2.2, 0.25, 0, b.h + 19, b.d / 2 + 1.6, '#E9E4D8')
+      add(b, 1.2, 0.25, 0.25, 0, b.h + 19.4, b.d / 2 + 1.6, '#E9E4D8')
+      for (const s of [-1, 1]) for (let k = 0; k < 4; k++) add(b, 0.1, 3.2, 1.4, s * (b.w / 2 + 0.05), 4.5, -b.d / 2 + 4 + k * 5.5, '#5D7189')
+      continue
+    }
+    if (b.kind === 'school') {
+      // 운동장: 트랙 + 잔디 + 흰 선 + 골대
+      add(b, b.w, 0.06, b.d, 0, 0.02, 0, '#B9785A')
+      add(b, b.w - 7, 0.07, b.d - 7, 0, 0.03, 0, '#6DB35A')
+      add(b, 0.15, 0.08, b.d - 7, 0, 0.04, 0, '#F4F4EF')
+      for (const s of [-1, 1]) {
+        add(b, 0.15, 2.2, 6, s * (b.w / 2 - 4.5), 1.1, 0, '#F4F4EF')
+        add(b, b.w - 2, 0.08, 0.12, 0, 0.04, s * (b.d / 2 - 1.8), '#F4F4EF')
+      }
+      add(b, 0.12, 9, 0.12, -b.w / 2 + 1, 4.5, -b.d / 2 + 1, '#C3C9D0')
+      continue
+    }
+    if (b.kind === 'stadium') {
+      // 경기장: 관중석 고리 + 잔디 구장 + 조명탑 4개
+      parts.push({ geo: bowl(b.w, b.d, b.h), pos: [b.x, 0, b.z], color: b.color })
+      const field = new THREE.CircleGeometry(1, 40)
+      field.rotateX(-Math.PI / 2)
+      field.scale(b.w * 0.32, 1, b.d * 0.32)
+      parts.push({ geo: field, pos: [b.x, 0.05, b.z], color: '#5FA94F' })
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        add(b, 0.6, 24, 0.6, sx * b.w * 0.42, 12, sz * b.d * 0.42, '#C3C9D0')
+        add(b, 3, 1.6, 0.4, sx * b.w * 0.42, 24, sz * b.d * 0.42, '#F4F4EF')
+      }
+      continue
+    }
+    if (b.kind === 'gas') {
+      // 주유소: 기둥 4개 위 캐노피 + 주유기 + 뒤쪽 편의점
+      add(b, b.w, 0.7, b.d * 0.7, 0, b.h, 2, '#F4F5F7')
+      add(b, b.w + 0.1, 0.35, b.d * 0.7 + 0.1, 0, b.h - 0.2, 2, b.roof)
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(b, 0.4, b.h, 0.4, sx * (b.w / 2 - 2), b.h / 2, 2 + sz * (b.d * 0.35 - 1.5), '#D5DAE1')
+      for (let k = -1; k <= 1; k++) {
+        add(b, 1, 0.25, 3, k * 6, 0.12, 2, '#C3C9D0')
+        add(b, 0.7, 1.6, 0.6, k * 6, 1.0, 2, '#2F62E8')
+      }
+      add(b, 12, 3.6, 6, 0, 1.8, -b.d / 2 - 2, '#EEF0F2')
+      add(b, 12.1, 0.6, 6.1, 0, 3.3, -b.d / 2 - 2, b.roof)
+      continue
+    }
+    if (b.kind === 'tank') {
+      // 저장탱크: 원통 + 낮은 돔 + 옆 사다리
+      parts.push({ geo: cyl(b.w / 2, b.h, 20), pos: [b.x, b.h / 2, b.z], color: b.color })
+      const dome = new THREE.SphereGeometry(b.w / 2, 20, 6, 0, Math.PI * 2, 0, Math.PI / 5)
+      dome.translate(0, -(b.w / 2) * Math.cos(Math.PI / 5), 0)
+      parts.push({ geo: dome, pos: [b.x, b.h, b.z], color: b.roof })
+      add(b, 0.5, b.h, 0.2, 0, b.h / 2, b.d / 2 + 0.1, '#8A9099')
+      add(b, b.w + 0.04, 0.6, b.d + 0.04, 0, 2.2, 0, '#2F62E8')
+      continue
+    }
+    if (b.kind === 'parkade') {
+      // 주차빌딩: 3m마다 바닥판, 낮은 난간, 기둥. 층 사이로 주차 차량이 보인다
+      const levels = Math.round(b.h / 3)
+      for (let k = 0; k <= levels; k++) {
+        add(b, b.w, 0.4, b.d, 0, k * 3 + 0.2, 0, k === levels ? b.roof : b.color)
+        if (k > 0) for (const s of [-1, 1]) add(b, b.w, 1.0, 0.2, 0, k * 3 + 0.9, s * (b.d / 2 - 0.1), '#B7BDC5')
+      }
+      for (const sx of [-1, 0, 1]) for (const sz of [-1, 1]) add(b, 0.6, b.h, 0.6, sx * (b.w / 2 - 0.5), b.h / 2, sz * (b.d / 2 - 0.5), '#B7BDC5')
+      for (let k = 0; k < levels; k++)
+        for (let x = -b.w / 2 + 2; x < b.w / 2 - 2; x += 2.8)
+          if (r.chance(0.5)) {
+            add(b, 1.7, 0.7, 4, x, k * 3 + 0.75, -b.d / 4, r.pick(CITY_CARS))
+            if (r.chance(0.5)) add(b, 1.7, 0.7, 4, x, k * 3 + 0.75, b.d / 4, r.pick(CITY_CARS))
+          }
+      continue
+    }
+    // 들여 쌓은 층마다 지붕 테두리, 맨 위에만 옥상 설비
+    const tiers = b.tiers ?? [{ w: b.w, d: b.d, h: b.h }]
+    for (const t of tiers) add(b, t.w + 0.3, 0.45, t.d + 0.3, 0, t.h + 0.2, 0, b.roof)
+    if (b.kind === 'factory') {
+      // 공장: 지붕 위 톱니 채광창 줄 + 굴뚝 + 옆 사일로
+      const n = Math.max(2, Math.floor(b.d / 9))
+      for (let k = 0; k < n; k++) geo(b, prism(b.w - 1, b.d / n, 3.2, 0.95), 0, b.h + 0.4, -b.d / 2 + (k + 0.5) * (b.d / n), b.roof)
+      const nc = r.int(1, 3)
+      for (let k = 0; k < nc; k++) {
+        const lx = -b.w / 2 + 4 + k * 5
+        parts.push({ geo: cyl(1.1, 26, 12), pos: at(b, lx, b.h + 13, b.d / 2 - 4), color: '#D9DCE0' })
+        parts.push({ geo: cyl(1.15, 2.4, 12), pos: at(b, lx, b.h + 24, b.d / 2 - 4), color: '#46536B' })
+      }
+      for (let k = 0; k < 3; k++) parts.push({ geo: cyl(2.3, 15, 16), pos: at(b, -b.w / 2 - 2.8, 7.5, -b.d / 2 + 4 + k * 5.2), color: '#E3E6EA' })
+      add(b, b.w + 0.04, 1.2, b.d + 0.04, 0, 0.6, 0, '#AEB5BE')
+      continue
+    }
+    if (b.kind === 'mall') {
+      // 쇼핑몰: 남쪽 정면 유리 입구 + 큰 간판 띠 + 차양
+      add(b, b.w * 0.5, 6, 0.2, 0, 3, b.d / 2 + 0.1, '#33475C')
+      add(b, b.w + 0.1, 2.2, b.d + 0.1, 0, b.h - 1.6, 0, b.accent ?? '#2F62E8')
+      add(b, b.w * 0.56, 0.3, 3, 0, 6.2, b.d / 2 + 1.5, '#F4F5F7')
+      for (let k = 0; k < 6; k++) add(b, r.range(2, 4), 1.4, r.range(2, 4), r.range(-b.w / 2 + 4, b.w / 2 - 4), b.h + 1, r.range(-b.d / 2 + 4, b.d / 2 - 4), '#C3C9D0')
+      continue
+    }
+    const units = Math.min(4, Math.floor((T.w * T.d) / 260))
+    for (let k = 0; k < units; k++) add(b, r.range(1.6, 3.2), r.range(0.9, 1.6), r.range(1.4, 2.6), r.range(-T.w / 2 + 2, T.w / 2 - 2), T.h + 0.9, r.range(-T.d / 2 + 2, T.d / 2 - 2), '#C3C9D0')
+    if (b.kind === 'tower' && b.facade === 'curtain') {
+      // 유리 타워: 꼭대기 왕관 + 헬기장 + 안테나
+      add(b, T.w * 0.7, 3.6, T.d * 0.7, 0, T.h + 2, 0, '#9AA2AB')
+      add(b, T.w * 0.5, 0.15, T.d * 0.5, 0, T.h + 3.9, 0, '#3A3F47')
+      add(b, 0.6, 0.18, 4, -1.2, T.h + 4, 0, '#F4F4EF')
+      add(b, 0.6, 0.18, 4, 1.2, T.h + 4, 0, '#F4F4EF')
+      add(b, 2.4, 0.18, 0.6, 0, T.h + 4, 0, '#F4F4EF')
+      parts.push({ geo: cyl(0.15, 14, 6), pos: at(b, T.w * 0.3, T.h + 10, T.d * 0.3), color: '#C3C9D0' })
+      continue
+    }
+    if (b.kind === 'hotel') {
+      // 호텔: 꼭대기 색 왕관 + 저층부 정면 차양
+      add(b, T.w + 0.2, 4.5, T.d + 0.2, 0, T.h - 1.6, 0, b.accent ?? '#46536B')
+      add(b, T.w * 0.4, 6, T.d * 0.4, 0, T.h + 3, 0, b.accent ?? '#46536B')
+      add(b, b.w * 0.4, 0.3, 3.4, 0, 4.2, b.d / 2 + 1.7, b.accent ?? '#46536B')
+      continue
+    }
+    if (b.kind === 'hospital') {
+      // 병원: 병동 꼭대기 헬기장(H) + 저층부 청록 띠
+      add(b, T.w * 0.6, 0.15, T.w * 0.6, 0, T.h + 0.5, 0, '#3A3F47')
+      add(b, 0.7, 0.18, 4.4, -1.4, T.h + 0.6, 0, '#F4F4EF')
+      add(b, 0.7, 0.18, 4.4, 1.4, T.h + 0.6, 0, '#F4F4EF')
+      add(b, 2.8, 0.18, 0.7, 0, T.h + 0.6, 0, '#F4F4EF')
+      add(b, b.w + 0.06, 1.2, b.d + 0.06, 0, 6.6, 0, b.accent ?? '#1499AE')
+      continue
+    }
+    if (b.kind === 'tower' && b.accent) {
+      // 탑상형 아파트: 꼭대기 색 띠 + 모서리 세로 띠 + 옥탑
+      add(b, b.w + 0.06, 3, b.d + 0.06, 0, b.h - 1.6, 0, b.accent)
+      for (const sx of [-1, 1]) add(b, 0.14, b.h - 3.2, b.d * 0.3, sx * (b.w / 2 + 0.05), (b.h - 3.2) / 2, b.d * 0.35, b.accent)
+      add(b, b.w * 0.4, 4, b.d * 0.4, 0, b.h + 2, 0, b.color)
+      continue
+    }
     if (b.facade === 'punch' && b.accent) {
       // 아파트: 꼭대기 두 층 색 띠 + 양쪽 측벽 색
       add(b, b.w + 0.06, 2.4, b.d + 0.06, 0, b.h - 1.6, 0, b.accent)
@@ -149,7 +342,7 @@ function buildingParts(plan: CityPlan, seed: number): Part[] {
         add(b, b.w - 0.4, 0.18, 1.5, 0, 3.35, s * (b.d / 2 + 0.75), b.shop)
       }
     }
-    if (b.facade === 'plain') {
+    if (b.docks) {
       // 물류창고: 하부 띠 + 남쪽 하역문 줄
       add(b, b.w + 0.04, 1.2, b.d + 0.04, 0, 0.6, 0, '#AEB5BE')
       const n = Math.max(2, Math.floor(b.w / 7))
@@ -160,7 +353,7 @@ function buildingParts(plan: CityPlan, seed: number): Part[] {
 }
 
 function plainWalls(plan: CityPlan): Part[] {
-  return plan.bldgs.filter((b) => b.facade === 'plain').map((b) => ({ geo: box(b.w, b.h, b.d), pos: [b.x, b.h / 2, b.z] as V3, rot: [0, b.rot, 0] as V3, color: b.color }))
+  return plan.bldgs.filter((b) => b.facade === 'plain' && !NO_WALL.has(b.kind ?? '')).map((b) => ({ geo: box(b.w, b.h, b.d), pos: [b.x, b.h / 2, b.z] as V3, rot: [0, b.rot, 0] as V3, color: b.color }))
 }
 
 // 도로를 교차로에서 끊은 구간들 (보도·중앙선이 교차로를 덮지 않게)
@@ -180,14 +373,15 @@ function segments(rd: Road, plan: CityPlan): [number, number][] {
   return out
 }
 
-const ZONE_FLOOR = { industrial: '#C7CCD2', commercial: '#D2D5D9', residential: '#B7D49A', park: '#A3CE82', parking: '#5A606A' } as const
+const ZONE_FLOOR = { industrial: '#C7CCD2', commercial: '#D2D5D9', residential: '#B7D49A', park: '#A3CE82', parking: '#5A606A', civic: '#C9D8BE', houses: '#BFD9A0', riverside: '' } as const
 const PAVING = { alley: '#767C86', path: '#DCD7CB', apron: '#9EA5AE' } as const
 
 function groundParts(plan: CityPlan): Part[] {
   const parts: Part[] = []
   const slab = (x0: number, x1: number, z0: number, z1: number, y: number, h: number, color: string) =>
     parts.push({ geo: box(Math.max(0.05, x1 - x0), h, Math.max(0.05, z1 - z0)), pos: [(x0 + x1) / 2, y, (z0 + z1) / 2], color })
-  for (const b of plan.blocks) slab(b.x0, b.x1, b.z0, b.z1, -0.035, 0.02, ZONE_FLOOR[b.zone])
+  // 강변 블록은 바닥판 없이 둑 잔디(지면)를 그대로 보인다
+  for (const b of plan.blocks) if (ZONE_FLOOR[b.zone]) slab(b.x0, b.x1, b.z0, b.z1, -0.035, 0.02, ZONE_FLOOR[b.zone])
   // 블록 안 포장면은 구역 바닥 위, 골목이 길보다 위
   for (const pv of plan.paving) slab(pv.x0, pv.x1, pv.z0, pv.z1, pv.kind === 'alley' ? -0.018 : -0.022, 0.02, PAVING[pv.kind])
   for (const rd of plan.roads) {
@@ -354,9 +548,18 @@ export function City({ site }: { site: Site }) {
   void t
 
   const facades = useMemo(() => {
-    const geos = { punch: [] as THREE.BufferGeometry[], ribbon: [] as THREE.BufferGeometry[] }
+    const geos = { punch: [] as THREE.BufferGeometry[], ribbon: [] as THREE.BufferGeometry[], curtain: [] as THREE.BufferGeometry[] }
     for (const b of plan.bldgs) {
       if (b.facade === 'plain') continue
+      if (b.tiers?.length) {
+        // 들여 쌓기: 층 묶음마다 크기가 줄어드는 상자를 이어 쌓는다
+        let y0 = 0
+        for (const t of b.tiers) {
+          geos[b.facade].push(facadeBox({ ...b, w: t.w, d: t.d }, y0, t.h, b.color))
+          y0 = t.h
+        }
+        continue
+      }
       // 상가 건물은 1층을 진열창으로 두고 위층부터 창 격자
       geos[b.facade].push(facadeBox(b, b.shop ? 3.3 : 0, b.h, b.color))
       if (b.shop) geos[b.facade].push(facadeBox({ ...b, facade: 'plain' }, 0, 3.3, '#5A6470'))
@@ -367,7 +570,7 @@ export function City({ site }: { site: Site }) {
       g.computeBoundingSphere()
       return g
     }
-    return { punch: mk(geos.punch), ribbon: mk(geos.ribbon) }
+    return { punch: mk(geos.punch), ribbon: mk(geos.ribbon), curtain: mk(geos.curtain) }
   }, [plan])
 
   const detailGeo = merged(`city-detail-${key}`, () => [...buildingParts(plan, site.cfg.seed + 3), ...plainWalls(plan)])
@@ -387,6 +590,7 @@ export function City({ site }: { site: Site }) {
       <mesh geometry={yellowGeo} material={vcMatMatte} />
       {facades.punch && <mesh geometry={facades.punch} material={nightMats.cityPunch} castShadow receiveShadow />}
       {facades.ribbon && <mesh geometry={facades.ribbon} material={nightMats.cityRibbon} castShadow receiveShadow />}
+      {facades.curtain && <mesh geometry={facades.curtain} material={nightMats.cityCurtain} castShadow receiveShadow />}
       <mesh geometry={detailGeo} material={vcMat} castShadow receiveShadow />
       <mesh geometry={poleGeo} material={vcMat} castShadow />
       <mesh geometry={headGeo} material={nightMats.lampHead} />
