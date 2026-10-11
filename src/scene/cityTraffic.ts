@@ -236,12 +236,12 @@ export function carPose(lanes: Lane[], mv: Mover, out: { x: number; z: number; h
   return out
 }
 
-// 차로 길이 85m마다 한 대. 교차로 안에서 시작하지 않도록 정지선 앞으로 당긴다
-export function spawnCars(plan: CityPlan, lanes: Lane[], seed: number): Mover[] {
+// 차로 길이 85m마다 한 대 (교통량 배율만큼). 교차로 안에서 시작하지 않도록 정지선 앞으로 당긴다
+export function spawnCars(plan: CityPlan, lanes: Lane[], seed: number, density = 1): Mover[] {
   const r = new Rng(seed)
   const movers: Mover[] = []
   plan.lanes.forEach((ln, i) => {
-    const n = Math.max(1, Math.floor(ln.len / 85))
+    const n = Math.max(1, Math.floor((ln.len / 85) * density))
     for (let k = 0; k < n; k++) {
       let s = (k / n) * ln.len + r.range(0, 30)
       const box = lanes[i].stops.find((st) => s > st.s && s < st.end)
