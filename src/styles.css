@@ -326,6 +326,12 @@ p {
 .panel-toggles button:active svg {
   transform: scale(0.92);
 }
+.panel-toggles .pt-all {
+  margin-right: 4px;
+  box-shadow: 1px 0 0 var(--line);
+  border-radius: 8px 0 0 8px;
+  color: var(--ink-2);
+}
 .panel-toggles button[aria-pressed='true'] {
   color: var(--ink);
 }
