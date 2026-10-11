@@ -1511,16 +1511,19 @@ p {
 }
 
 /* ───────── 반응형 ───────── */
-@media (max-width: 1360px) {
-  .main {
-    --side-w: 264px;
-    --insp-w: 320px;
-  }
+/* 상단 바에 패널 버튼까지 들어가므로 사이트 이름은 조금 더 넓은 폭에서부터 줄인다 */
+@media (max-width: 1520px) {
   .site-name {
     display: none;
   }
   .site-short {
     display: inline;
+  }
+}
+@media (max-width: 1360px) {
+  .main {
+    --side-w: 264px;
+    --insp-w: 320px;
   }
 }
 @media (max-width: 1120px) {
