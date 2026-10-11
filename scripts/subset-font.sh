@@ -11,9 +11,9 @@ for p in pathlib.Path('src').rglob('*'):
         chars.update(p.read_text(encoding='utf-8'))
 chars.update(chr(c) for c in range(0x20,0x7f))
 chars.update('×·—–→←−℃↑↓…%일월화수목금토년분초시간대건회')
-pathlib.Path('/tmp/hubline-glyphs.txt').write_text(''.join(sorted(c for c in chars if ord(c)>=0x20)), encoding='utf-8')
+pathlib.Path('/tmp/human-3dsim-glyphs.txt').write_text(''.join(sorted(c for c in chars if ord(c)>=0x20)), encoding='utf-8')
 PY
 python3 -m fontTools.subset node_modules/pretendard/dist/web/variable/woff2/PretendardVariable.woff2 \
-  --text-file=/tmp/hubline-glyphs.txt --flavor=woff2 --layout-features='*' \
+  --text-file=/tmp/human-3dsim-glyphs.txt --flavor=woff2 --layout-features='*' \
   --output-file=src/assets/PretendardVariable.woff2
 echo "subset → src/assets/PretendardVariable.woff2"
