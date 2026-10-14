@@ -3,7 +3,6 @@ import { World, type Sel, type ScenarioKind } from './sim/engine'
 
 export const world = new World()
 
-// 시뮬레이션은 멈추지 않는다: 일시정지 없이 배속만 고른다
 export const SPEEDS = [20, 80, 300] as const
 export type ViewMode = 'base' | 'stock' | 'traffic'
 export type LightMode = 'auto' | 'day'
