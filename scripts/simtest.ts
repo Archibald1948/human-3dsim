@@ -1,6 +1,3 @@
-// 헤드리스 시뮬레이션 점검: 워밍업 시간, 시간대별 KPI, 시나리오, 불변식, 차량 겹침, 교착
-//   SIM_NOW='2026-10-10T00:04:00+09:00'  시작 시각 (기본: 정오)
-//   SIM_HOURS=6                           점검 구간 길이
 import { World, TRUCK_MODELS, type Site } from '../src/sim/engine'
 import { FL_HL, FL_HW } from '../src/sim/layout'
 
