@@ -1,6 +1,3 @@
-// 보행자 길 그래프와 걸음 시뮬레이션 (순수 데이터, three 없이). 그리기는 Pedestrians.tsx가 맡는다
-// 보도 중심선·단지 길·골목·공원 산책로를 직선(line)으로 모으고, 직선끼리 만나는 점을 노드로 삼는다.
-// 보도 선은 교차하는 도로의 차도를 지나며 그대로 횡단보도가 된다 (차도 위 구간만 횡단 간선으로 표시)
 import type { CityPlan } from './cityPlan'
 import { Rng } from '../sim/rng'
 
@@ -93,7 +90,6 @@ export function buildPedGraph(plan: CityPlan, campus: Rect): PedGraph {
     lines.push(ln)
   }
 
-  // ── 단지 길·골목: 포장면 긴 쪽 중심선. 단지 길은 주차 차량이 적은 쪽으로 붙는다 ──
   for (const pv of plan.paving) {
     if (pv.kind !== 'path' && pv.kind !== 'alley') continue
     const cx = (pv.x0 + pv.x1) / 2
