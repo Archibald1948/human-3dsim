@@ -19,7 +19,6 @@ const report = () =>
     .join('\n   ')
 console.log(fmt(w.time), report())
 
-// ── 겹침 판정 (엔진과 독립: 꼭짓점 4개 + 분리축) ──
 type Pt = [number, number]
 function corners(x: number, z: number, h: number, back: number, front: number, hw: number): Pt[] {
   const fx = Math.sin(h)
@@ -91,7 +90,6 @@ function countOverlaps(list: { id: string; poly: Pt[] }[], tl: Tally, t: number)
   tl.active = now
 }
 
-// ── 장기 정지 추적 ──
 const STUCK_LIMIT = 240
 const stuckSince = new Map<string, number>()
 const longStops: string[] = []
